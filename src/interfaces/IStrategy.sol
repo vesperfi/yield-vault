@@ -9,7 +9,5 @@ interface IStrategy {
 
     function feeCollector() external view returns (address);
 
-    function migrate(address _newStrategy) external;
-
     function pool() external view returns (address);
 }

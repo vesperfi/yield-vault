@@ -36,7 +36,6 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
     error InputIsHigherThanMaxLimit();
     error InsufficientBalance();
     error InvalidDebtRatio();
-    error InvalidStrategy();
     error MinimumDepositLimitCannotBeZero();
     error LossTooHigh();
     error RemoveFromListFailed();
@@ -57,7 +56,6 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
     );
     event LossReported(address indexed strategy, uint256 loss);
     event StrategyAdded(address indexed strategy, uint256 debtRatio);
-    event StrategyMigrated(address indexed oldStrategy, address indexed newStrategy);
     event StrategyRemoved(address indexed strategy);
     event UniversalFeePaid(uint256 strategyDebt, uint256 profit, uint256 fee);
     event UpdatedMaximumProfitAsFee(uint256 oldMaxProfitAsFee, uint256 newMaxProfitAsFee);
@@ -517,55 +515,8 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
     }
 
     /**
-     * @notice onlyOwner:: Migrate existing strategy to new strategy.
-     * @dev Migrating strategy aka old and new strategy should be of same type.
-     * @dev New strategy will replace old strategy in strategy mapping,
-     * strategies array, withdraw queue.
-     * @param old_ Address of strategy being migrated
-     * @param new_ Address of new strategy
-     */
-    function migrateStrategy(address old_, address new_) external onlyOwner {
-        if (IStrategy(new_).pool() != address(this) || IStrategy(old_).pool() != address(this)) revert InvalidStrategy();
-
-        PoolStorage storage $ = _getPoolStorage();
-        StrategyConfig memory _oldStrategyConfig = $._strategyConfig[old_];
-        if (!_oldStrategyConfig.active) revert StrategyIsNotActive();
-        if ($._strategyConfig[new_].active) revert StrategyIsActive();
-
-        StrategyConfig memory _newStrategy = StrategyConfig({
-            active: true,
-            lastRebalance: _oldStrategyConfig.lastRebalance,
-            totalDebt: _oldStrategyConfig.totalDebt,
-            totalLoss: 0,
-            totalProfit: 0,
-            debtRatio: _oldStrategyConfig.debtRatio
-        });
-        // remove old strategy
-        delete $._strategyConfig[old_];
-        $._strategies.remove(old_);
-
-        // add new strategy
-        $._strategyConfig[new_] = _newStrategy;
-        $._strategies.add(new_);
-
-        // update withdraw queue
-        uint256 _len = $._withdrawQueue.length;
-        for (uint256 i; i < _len; i++) {
-            if ($._withdrawQueue[i] == old_) {
-                $._withdrawQueue[i] = new_;
-                break;
-            }
-        }
-
-        // Call migrate in old strategy. This call will transfer assets, if any, from old strategy to new strategy.
-        IStrategy(old_).migrate(new_);
-
-        emit StrategyMigrated(old_, new_);
-    }
-
-    /**
      * @notice onlyOwner:: Remove strategy.
-     * @dev If strategy has non-zero debt then it can NOT be removed. Try migrate instead.
+     * @dev If strategy has non-zero debt then it can NOT be removed.
      * @dev Removal of strategy will lead to update in withdraw queue as well. Make sure
      * order of withdraw queue remains same.
      * @param strategy_ address of strategy to remove.
