@@ -276,154 +276,6 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
     }
 
     /**************************************************************************
-     *                           Internal functions                           *
-     *************************************************************************/
-    function _beforeWithdraw(uint256 assets_) internal whenNotShutdown {
-        if (assets_ == 0) revert ZeroAssets();
-        uint256 _assetsHere = _assetsInPool();
-        // If we do not have enough assets in pool then withdraw from strategy.
-        if (assets_ > _assetsHere) {
-            // Strategy may withdraw less than requested
-            _assetsHere = _assetsHere + _withdrawFromStrategy(assets_ - _assetsHere);
-            if (assets_ > _assetsHere) revert AssetsCanNotBeWithdrawn(_assetsHere);
-        }
-    }
-
-    /**
-     * @dev When strategy report loss, its debtRatio decreases to get fund back quickly.
-     * Reduction is debt ratio is reduction in credit limit
-     */
-    function _reportLoss(PoolStorage storage $, address strategy_, uint256 loss_) internal {
-        StrategyConfig storage _config = $._strategyConfig[strategy_];
-        if (_config.totalDebt < loss_) revert LossTooHigh();
-        // increase loss of strategy
-        _config.totalLoss += loss_;
-        // decrease debt for strategy and pool aka global
-        _config.totalDebt -= loss_;
-        $._totalDebt -= loss_;
-
-        // calculate change in debtRatio
-        uint256 _deltaDebtRatio = Math.min((loss_ * MAX_BPS) / totalAssets(), _config.debtRatio);
-        // decrease debtRatio for strategy and pool aka global
-        _config.debtRatio -= _deltaDebtRatio;
-        $._totalDebtRatio -= _deltaDebtRatio;
-    }
-
-    function _withdrawFromStrategy(uint256 assets_) internal returns (uint256) {
-        PoolStorage storage $ = _getPoolStorage();
-        // Withdraw assets from queue
-        IERC20 _asset = IERC20(asset());
-        uint256 _debt;
-        uint256 _balanceBefore;
-        uint256 _assetsWithdrawn;
-        uint256 _totalAssetsWithdrawn;
-        address[] memory _withdrawQueue = $._withdrawQueue;
-        uint256 _len = _withdrawQueue.length;
-        for (uint256 i; i < _len; i++) {
-            uint256 _assetsNeeded = assets_ - _totalAssetsWithdrawn;
-            address _currentStrategy = _withdrawQueue[i];
-            _debt = $._strategyConfig[_currentStrategy].totalDebt;
-            if (_debt == 0) {
-                continue;
-            }
-            if (_assetsNeeded > _debt) {
-                // Should not withdraw more than current debt of strategy.
-                _assetsNeeded = _debt;
-            }
-            _balanceBefore = _asset.balanceOf(address(this));
-            // solhint-disable no-empty-blocks
-            try IStrategy(_currentStrategy).withdraw(_assetsNeeded) {} catch {
-                continue;
-            }
-            _assetsWithdrawn = _asset.balanceOf(address(this)) - _balanceBefore;
-
-            // To be on safe side, take a min of strategy debt and withdrawn.
-            uint256 _debtToReduce = Math.min(_debt, _assetsWithdrawn);
-            // update strategy debt and global debt
-            $._strategyConfig[_currentStrategy].totalDebt -= _debtToReduce;
-            $._totalDebt -= _debtToReduce;
-
-            _totalAssetsWithdrawn += _assetsWithdrawn;
-
-            if (_totalAssetsWithdrawn >= assets_) {
-                // withdraw done
-                break;
-            }
-        }
-        return _totalAssetsWithdrawn;
-    }
-
-    /**
-     * @dev Overridden ERC20 _update() to updateReward() before mint, burn and transfer.
-     */
-    function _update(address from, address to, uint256 value) internal override(ERC20) {
-        address _poolRewards = _getPoolStorage()._poolRewards;
-        if (_poolRewards != address(0)) {
-            if (from != address(0)) {
-                IPoolRewards(_poolRewards).updateReward(from);
-            }
-            if (to != address(0)) {
-                IPoolRewards(_poolRewards).updateReward(to);
-            }
-        }
-        ERC20._update(from, to, value);
-    }
-
-    /**************************************************************************
-     *                         Internal view functions                        *
-     *************************************************************************/
-
-    function _assetsInPool() internal view returns (uint256) {
-        return IERC20(asset()).balanceOf(address(this));
-    }
-
-    function _availableCreditLimit(StrategyConfig memory config_, uint256 totalDebtRatio_, uint256 totalDebt_) internal view returns (uint256) {
-        if (isShutdown()) {
-            return 0;
-        }
-        uint256 _totalValue = totalAssets();
-        uint256 _strategyDebtLimit = (config_.debtRatio * _totalValue) / MAX_BPS;
-        uint256 _currentDebt = config_.totalDebt;
-        if (_currentDebt >= _strategyDebtLimit) {
-            return 0;
-        }
-
-        uint256 _poolDebtLimit = (totalDebtRatio_ * _totalValue) / MAX_BPS;
-        if (totalDebt_ >= _poolDebtLimit) {
-            return 0;
-        }
-        // take min of available debt at strategy level and at pool level.
-        uint256 _available = Math.min((_strategyDebtLimit - _currentDebt), (_poolDebtLimit - totalDebt_));
-        // take min of asset balance here and available
-        return Math.min(_assetsInPool(), _available);
-    }
-
-    /**
-     * @dev Calculate universal fee based on strategy's TVL, profit earned and duration between rebalance and now.
-     */
-    function _calculateUniversalFee(PoolStorage storage $, address strategy_, uint256 profit_) private view returns (uint256 _fee) {
-        StrategyConfig memory _config = $._strategyConfig[strategy_];
-        _fee = ($._universalFee * (block.timestamp - _config.lastRebalance) * _config.totalDebt) / (MAX_BPS * ONE_YEAR);
-        uint256 _maxFee = (profit_ * $._maxProfitAsFee) / MAX_BPS;
-        if (_fee > _maxFee) {
-            _fee = _maxFee;
-        }
-    }
-
-    function _decimalsOffset() internal view override returns (uint8) {
-        return _getPoolStorage()._offset;
-    }
-
-    function _excessDebt(StrategyConfig memory config_) internal view returns (uint256) {
-        uint256 _currentDebt = config_.totalDebt;
-        if (isShutdown()) {
-            return _currentDebt;
-        }
-        uint256 _maxDebt = (config_.debtRatio * totalAssets()) / MAX_BPS;
-        return _currentDebt > _maxDebt ? (_currentDebt - _maxDebt) : 0;
-    }
-
-    /**************************************************************************
      *                           Strategy functions                           *
      *************************************************************************/
     /**
@@ -716,5 +568,153 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
         }
         $._withdrawQueue = withdrawQueue_;
         emit UpdatedWithdrawQueue();
+    }
+
+    /**************************************************************************
+     *                           Internal functions                           *
+     *************************************************************************/
+    function _beforeWithdraw(uint256 assets_) internal whenNotShutdown {
+        if (assets_ == 0) revert ZeroAssets();
+        uint256 _assetsHere = _assetsInPool();
+        // If we do not have enough assets in pool then withdraw from strategy.
+        if (assets_ > _assetsHere) {
+            // Strategy may withdraw less than requested
+            _assetsHere = _assetsHere + _withdrawFromStrategy(assets_ - _assetsHere);
+            if (assets_ > _assetsHere) revert AssetsCanNotBeWithdrawn(_assetsHere);
+        }
+    }
+
+    /**
+     * @dev When strategy report loss, its debtRatio decreases to get fund back quickly.
+     * Reduction is debt ratio is reduction in credit limit
+     */
+    function _reportLoss(PoolStorage storage $, address strategy_, uint256 loss_) internal {
+        StrategyConfig storage _config = $._strategyConfig[strategy_];
+        if (_config.totalDebt < loss_) revert LossTooHigh();
+        // increase loss of strategy
+        _config.totalLoss += loss_;
+        // decrease debt for strategy and pool aka global
+        _config.totalDebt -= loss_;
+        $._totalDebt -= loss_;
+
+        // calculate change in debtRatio
+        uint256 _deltaDebtRatio = Math.min((loss_ * MAX_BPS) / totalAssets(), _config.debtRatio);
+        // decrease debtRatio for strategy and pool aka global
+        _config.debtRatio -= _deltaDebtRatio;
+        $._totalDebtRatio -= _deltaDebtRatio;
+    }
+
+    function _withdrawFromStrategy(uint256 assets_) internal returns (uint256) {
+        PoolStorage storage $ = _getPoolStorage();
+        // Withdraw assets from queue
+        IERC20 _asset = IERC20(asset());
+        uint256 _debt;
+        uint256 _balanceBefore;
+        uint256 _assetsWithdrawn;
+        uint256 _totalAssetsWithdrawn;
+        address[] memory _withdrawQueue = $._withdrawQueue;
+        uint256 _len = _withdrawQueue.length;
+        for (uint256 i; i < _len; i++) {
+            uint256 _assetsNeeded = assets_ - _totalAssetsWithdrawn;
+            address _currentStrategy = _withdrawQueue[i];
+            _debt = $._strategyConfig[_currentStrategy].totalDebt;
+            if (_debt == 0) {
+                continue;
+            }
+            if (_assetsNeeded > _debt) {
+                // Should not withdraw more than current debt of strategy.
+                _assetsNeeded = _debt;
+            }
+            _balanceBefore = _asset.balanceOf(address(this));
+            // solhint-disable no-empty-blocks
+            try IStrategy(_currentStrategy).withdraw(_assetsNeeded) {} catch {
+                continue;
+            }
+            _assetsWithdrawn = _asset.balanceOf(address(this)) - _balanceBefore;
+
+            // To be on safe side, take a min of strategy debt and withdrawn.
+            uint256 _debtToReduce = Math.min(_debt, _assetsWithdrawn);
+            // update strategy debt and global debt
+            $._strategyConfig[_currentStrategy].totalDebt -= _debtToReduce;
+            $._totalDebt -= _debtToReduce;
+
+            _totalAssetsWithdrawn += _assetsWithdrawn;
+
+            if (_totalAssetsWithdrawn >= assets_) {
+                // withdraw done
+                break;
+            }
+        }
+        return _totalAssetsWithdrawn;
+    }
+
+    /**
+     * @dev Overridden ERC20 _update() to updateReward() before mint, burn and transfer.
+     */
+    function _update(address from, address to, uint256 value) internal override(ERC20) {
+        address _poolRewards = _getPoolStorage()._poolRewards;
+        if (_poolRewards != address(0)) {
+            if (from != address(0)) {
+                IPoolRewards(_poolRewards).updateReward(from);
+            }
+            if (to != address(0)) {
+                IPoolRewards(_poolRewards).updateReward(to);
+            }
+        }
+        ERC20._update(from, to, value);
+    }
+
+    /**************************************************************************
+     *                         Internal view functions                        *
+     *************************************************************************/
+
+    function _assetsInPool() internal view returns (uint256) {
+        return IERC20(asset()).balanceOf(address(this));
+    }
+
+    function _availableCreditLimit(StrategyConfig memory config_, uint256 totalDebtRatio_, uint256 totalDebt_) internal view returns (uint256) {
+        if (isShutdown()) {
+            return 0;
+        }
+        uint256 _totalValue = totalAssets();
+        uint256 _strategyDebtLimit = (config_.debtRatio * _totalValue) / MAX_BPS;
+        uint256 _currentDebt = config_.totalDebt;
+        if (_currentDebt >= _strategyDebtLimit) {
+            return 0;
+        }
+
+        uint256 _poolDebtLimit = (totalDebtRatio_ * _totalValue) / MAX_BPS;
+        if (totalDebt_ >= _poolDebtLimit) {
+            return 0;
+        }
+        // take min of available debt at strategy level and at pool level.
+        uint256 _available = Math.min((_strategyDebtLimit - _currentDebt), (_poolDebtLimit - totalDebt_));
+        // take min of asset balance here and available
+        return Math.min(_assetsInPool(), _available);
+    }
+
+    /**
+     * @dev Calculate universal fee based on strategy's TVL, profit earned and duration between rebalance and now.
+     */
+    function _calculateUniversalFee(PoolStorage storage $, address strategy_, uint256 profit_) private view returns (uint256 _fee) {
+        StrategyConfig memory _config = $._strategyConfig[strategy_];
+        _fee = ($._universalFee * (block.timestamp - _config.lastRebalance) * _config.totalDebt) / (MAX_BPS * ONE_YEAR);
+        uint256 _maxFee = (profit_ * $._maxProfitAsFee) / MAX_BPS;
+        if (_fee > _maxFee) {
+            _fee = _maxFee;
+        }
+    }
+
+    function _decimalsOffset() internal view override returns (uint8) {
+        return _getPoolStorage()._offset;
+    }
+
+    function _excessDebt(StrategyConfig memory config_) internal view returns (uint256) {
+        uint256 _currentDebt = config_.totalDebt;
+        if (isShutdown()) {
+            return _currentDebt;
+        }
+        uint256 _maxDebt = (config_.debtRatio * totalAssets()) / MAX_BPS;
+        return _currentDebt > _maxDebt ? (_currentDebt - _maxDebt) : 0;
     }
 }
