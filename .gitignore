@@ -12,3 +12,15 @@ lcov.info
 
 # File system
 .DS_store
+
+# Node
+node_modules
+
+# Hardhat build artifacts
+/artifacts
+
+# Hardhat compilation
+/cache_hardhat
+
+# Typechain output
+typechain-types

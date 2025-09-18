@@ -1,0 +1,13 @@
+{
+  "name": "vesper-v6",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-foundry": "^1.2.0",
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "@openzeppelin/hardhat-upgrades": "^3.9.1",
+    "dotenv": "^17.2.2",
+    "hardhat": "^2.26.3",
+    "hardhat-deploy": "^1.0.4",
+    "typescript": "^5.9.2"
+  }
+}
