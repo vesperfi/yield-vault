@@ -10,17 +10,16 @@ import {ERC20Upgradeable as ERC20} from "@openzeppelin/contracts-upgradeable/tok
 import {ERC20PermitUpgradeable as ERC20Permit} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {ERC4626Upgradeable as ERC4626} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import {Ownable2StepUpgradeable as Ownable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import {IStrategy} from "./interfaces/IStrategy.sol";
 import {IPoolRewards} from "./interfaces/IPoolRewards.sol";
 import {ShutdownableUpgradeable as Shutdownable} from "./ShutdownableUpgradeable.sol";
 
-contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
+contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
     using Math for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
-
-    string public constant VERSION = "6.0.0";
 
     uint256 internal constant MAX_BPS = 10_000;
     uint256 internal constant ONE_YEAR = 365.25 days;
@@ -38,6 +37,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
     error InvalidDebtRatio();
     error MinimumDepositLimitCannotBeZero();
     error LossTooHigh();
+    error OwnerMismatch(address, address);
     error RemoveFromListFailed();
     error StrategyIsActive();
     error StrategyIsNotActive();
@@ -225,6 +225,10 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
 
     function universalFee() external view returns (uint256) {
         return _getPoolStorage()._universalFee;
+    }
+
+    function version() external pure returns (string memory) {
+        return "6.0.0";
     }
 
     /// Below functions are added for compatibility with V6 strategies
@@ -720,5 +724,19 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable {
         }
         uint256 _maxDebt = (config_.debtRatio * totalAssets()) / MAX_BPS;
         return _currentDebt > _maxDebt ? (_currentDebt - _maxDebt) : 0;
+    }
+
+    /*/////////////////////////////////////////////////////////////
+                        upgrade control functions
+    /////////////////////////////////////////////////////////////*/
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function upgradeToAndCall(address newImplementation, bytes memory data) public payable override onlyProxy {
+        address _ownerBefore = owner();
+        super.upgradeToAndCall(newImplementation, data);
+        // owner should be same before and after upgrade.
+        address _ownerAfter = owner();
+        if (_ownerAfter != _ownerBefore) revert OwnerMismatch(_ownerAfter, _ownerBefore);
     }
 }
