@@ -1,12 +1,4 @@
 {
-  "printWidth": 150,
-  "overrides": [
-    {
-      "files": ["*.ts"],
-      "options": {
-        "semi": false,
-        "singleQuote": true
-      }
-    }
-  ]
+  "printWidth": 120,
+  "trailingComma": "all"
 }

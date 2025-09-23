@@ -77,7 +77,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         uint256 debtRatio; // % of asset allocation
     }
 
-    /// @custom:storage-location erc7201:vesper.storage.pool
+    /// @custom:storage-location erc7201:vesper.storage.VesperPool
     struct PoolStorage {
         // PoolRewards contract address
         address _poolRewards;
@@ -680,7 +680,11 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         return IERC20(asset()).balanceOf(address(this));
     }
 
-    function _availableCreditLimit(StrategyConfig memory config_, uint256 totalDebtRatio_, uint256 totalDebt_) internal view returns (uint256) {
+    function _availableCreditLimit(
+        StrategyConfig memory config_,
+        uint256 totalDebtRatio_,
+        uint256 totalDebt_
+    ) internal view returns (uint256) {
         if (isShutdown()) {
             return 0;
         }
@@ -704,7 +708,11 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     /**
      * @dev Calculate universal fee based on strategy's TVL, profit earned and duration between rebalance and now.
      */
-    function _calculateUniversalFee(PoolStorage storage $, address strategy_, uint256 profit_) private view returns (uint256 _fee) {
+    function _calculateUniversalFee(
+        PoolStorage storage $,
+        address strategy_,
+        uint256 profit_
+    ) private view returns (uint256 _fee) {
         StrategyConfig memory _config = $._strategyConfig[strategy_];
         _fee = ($._universalFee * (block.timestamp - _config.lastRebalance) * _config.totalDebt) / (MAX_BPS * ONE_YEAR);
         uint256 _maxFee = (profit_ * $._maxProfitAsFee) / MAX_BPS;

@@ -20,7 +20,9 @@ contract VesperPool_Strategy_Test is VesperPoolTestBase {
 
     function _calculateFee(VesperPool pool_, address strategy_) internal view returns (uint256 _fee) {
         VesperPool.StrategyConfig memory _config = pool_.getStrategyConfig(strategy_);
-        _fee = (pool_.universalFee() * (block.timestamp - _config.lastRebalance) * _config.totalDebt) / (Constants.MAX_BPS * Constants.ONE_YEAR);
+        _fee =
+            (pool_.universalFee() * (block.timestamp - _config.lastRebalance) * _config.totalDebt) /
+            (Constants.MAX_BPS * Constants.ONE_YEAR);
     }
 
     function test_reportEarning() public {

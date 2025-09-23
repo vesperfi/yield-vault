@@ -40,7 +40,12 @@ contract VesperPool_Proxy_Test is VesperPoolTestBase {
         VesperPool implementation = new VesperPool();
 
         // Prepare initialization data
-        bytes memory initData = abi.encodeWithSelector(VesperPool.initialize.selector, "Vesper Pool V6", "VesperPoolV6", address(asset));
+        bytes memory initData = abi.encodeWithSelector(
+            VesperPool.initialize.selector,
+            "Vesper Pool V6",
+            "VesperPoolV6",
+            address(asset)
+        );
 
         // Deploy the proxy
         proxy = new ERC1967Proxy(address(implementation), initData);

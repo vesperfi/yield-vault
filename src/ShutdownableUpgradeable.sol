@@ -15,13 +15,14 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Pau
  * simply including this module, only once the modifiers are put in place.
  */
 abstract contract ShutdownableUpgradeable is PausableUpgradeable {
-    /// @custom:storage-location erc7201:vesper.storage.shutdownable
+    /// @custom:storage-location erc7201:vesper.storage.Shutdownable
     struct ShutdownableStorage {
         bool _stopped;
     }
 
     // keccak256(abi.encode(uint256(keccak256("vesper.storage.Shutdownable")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant ShutdownableStorageLocation = 0x019a888e50c7391e6e8fcd7763e66682aa228549857b7d24cf4bc363dd4e7100;
+    bytes32 private constant ShutdownableStorageLocation =
+        0x019a888e50c7391e6e8fcd7763e66682aa228549857b7d24cf4bc363dd4e7100;
 
     function _getShutdownableStorage() private pure returns (ShutdownableStorage storage $) {
         assembly {
