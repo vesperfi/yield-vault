@@ -117,6 +117,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     /*/////////////////////////////////////////////////////////////
                     Constructor and initialize
     /////////////////////////////////////////////////////////////*/
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }

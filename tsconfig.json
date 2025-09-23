@@ -9,5 +9,6 @@
     "outDir": "./dist",
     "noImplicitAny": false
   },
+  "include": ["./deploy", "./test", "./tasks", "./typechain-types/", "./helpers"],
   "files": ["./hardhat.config.ts"]
 }
