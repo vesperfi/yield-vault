@@ -9,5 +9,5 @@ interface IStrategy {
 
     function feeCollector() external view returns (address);
 
-    function pool() external view returns (address);
+    function vault() external view returns (address);
 }

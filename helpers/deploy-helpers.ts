@@ -31,7 +31,7 @@ export const deployAndConfigurePool = async (deployParams: DeployParams, configP
   const { execute, read } = hre.deployments;
   const { alias } = deployParams;
 
-  // deploy pool, proxy and initialize proxy
+  // deploy vault, proxy and initialize proxy
   const deployed = await deploy(hre, deployParams);
   const poolAddress = deployed.address;
 

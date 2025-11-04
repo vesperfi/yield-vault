@@ -1,5 +1,5 @@
 {
-  "name": "vesper-v6",
+  "name": "yield-vault",
   "version": "1.0.0",
   "devDependencies": {
     "@nomicfoundation/hardhat-foundry": "^1.2.0",

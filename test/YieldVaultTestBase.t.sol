@@ -3,13 +3,13 @@
 pragma solidity 0.8.30;
 
 import {Test} from "forge-std/Test.sol";
-import {VesperPool} from "src/VesperPool.sol";
+import {YieldVault} from "src/YieldVault.sol";
 
 import {MockERC20} from "test/mocks/MockERC20.sol";
 import {Constants} from "test/helpers/Constants.sol";
 
-contract VesperPoolTestBase is Test {
-    VesperPool pool;
+contract YieldVaultTestBase is Test {
+    YieldVault vault;
     MockERC20 asset;
     address alice = makeAddr("alice");
     address feeCollector = makeAddr("feeCollector");
@@ -20,12 +20,12 @@ contract VesperPoolTestBase is Test {
     uint256 assetUnit;
 
     function setUp() public {
-        pool = new VesperPool();
+        vault = new YieldVault();
         asset = new MockERC20();
         assetUnit = 10 ** asset.decimals();
-        // clear storage to initialize pool
-        vm.store(address(pool), Constants.INITIALIZABLE_STORAGE, bytes32(uint256(0)));
-        pool.initialize("Vesper Pool V6", "VesperPoolV6", address(asset));
+        // clear storage to initialize vault
+        vm.store(address(vault), Constants.INITIALIZABLE_STORAGE, bytes32(uint256(0)));
+        vault.initialize("Yield Vault", "yieldVault", address(asset));
     }
 
     /// @dev Usage of this function makes sure that any ERC4626 overrides are still good.

@@ -1,5 +1,5 @@
-// Vesper pool contract name
-export const VESPER_POOL = "VesperPool";
+// Contract name
+export const YIELD_VAULT = "YieldVault";
 
-// Vesper pool name and symbol
+// Vault name and symbol
 export const vaETH = ["vaETH Pool", "vaETH"];

@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.30;
 
-interface IVesperPool {
+interface IYieldVault {
     function asset() external view returns (address);
 
     function excessDebt(address strategy_) external view returns (uint256);
