@@ -1,4 +1,4 @@
-# Vesper contracts V6
+# Yield Vault (ERC4626)
 
 ## Requirements
 - Install [Foundry](https://book.getfoundry.sh/getting-started/installation)

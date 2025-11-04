@@ -13,10 +13,10 @@ import {Ownable2StepUpgradeable as Ownable} from "@openzeppelin/contracts-upgrad
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import {IStrategy} from "./interfaces/IStrategy.sol";
-import {IPoolRewards} from "./interfaces/IPoolRewards.sol";
+import {IVaultRewards} from "./interfaces/IVaultRewards.sol";
 import {ShutdownableUpgradeable as Shutdownable} from "./ShutdownableUpgradeable.sol";
 
-contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradeable {
+contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
     using Math for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -51,7 +51,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         uint256 loss,
         uint256 payback,
         uint256 strategyDebt,
-        uint256 poolDebt,
+        uint256 vaultDebt,
         uint256 creditLine
     );
     event LossReported(address indexed strategy, uint256 loss);
@@ -60,7 +60,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     event UniversalFeePaid(uint256 strategyDebt, uint256 profit, uint256 fee);
     event UpdatedMaximumProfitAsFee(uint256 oldMaxProfitAsFee, uint256 newMaxProfitAsFee);
     event UpdatedMinimumDepositLimit(uint256 oldDepositLimit, uint256 newDepositLimit);
-    event UpdatedPoolRewards(address indexed previousPoolRewards, address indexed newPoolRewards);
+    event UpdatedVaultRewards(address indexed previousVaultRewards, address indexed newVaultRewards);
     event UpdatedStrategyDebtRatio(address indexed strategy, uint256 oldDebtRatio, uint256 newDebtRatio);
     event UpdatedUniversalFee(uint256 oldUniversalFee, uint256 newUniversalFee);
     event UpdatedWithdrawQueue();
@@ -77,15 +77,15 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         uint256 debtRatio; // % of asset allocation
     }
 
-    /// @custom:storage-location erc7201:vesper.storage.VesperPool
-    struct PoolStorage {
-        // PoolRewards contract address
-        address _poolRewards;
+    /// @custom:storage-location erc7201:vault.storage.YieldVault
+    struct VaultStorage {
+        // VaultRewards contract address
+        address _vaultRewards;
         // List of keeper addresses
         EnumerableSet.AddressSet _keepers;
         // List of maintainer addresses
         EnumerableSet.AddressSet _maintainers;
-        //Universal fee of this pool. Default to 2%
+        //Universal fee of this vault. Default to 2%
         uint256 _universalFee;
         // Maximum percentage of profit that can be counted as universal fee. Default to 50%
         uint256 _maxProfitAsFee;
@@ -105,12 +105,12 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         mapping(address strategy => StrategyConfig) _strategyConfig;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("vesper.storage.VesperPool")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant PoolStorageLocation = 0xbaeaf235c9c9807c1f4a2c352810dd4cb4b0d3d0f2cf0b692f9279e99df38e00;
+    // keccak256(abi.encode(uint256(keccak256("vault.storage.YieldVault")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant VaultStorageLocation = 0xbaeaf235c9c9807c1f4a2c352810dd4cb4b0d3d0f2cf0b692f9279e99df38e00;
 
-    function _getPoolStorage() private pure returns (PoolStorage storage $) {
+    function _getVaultStorage() private pure returns (VaultStorage storage $) {
         assembly {
-            $.slot := PoolStorageLocation
+            $.slot := VaultStorageLocation
         }
     }
 
@@ -130,7 +130,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         __Ownable_init(msg.sender);
         __Shutdownable_init();
 
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
 
         $._keepers.add(msg.sender);
         $._maintainers.add(msg.sender);
@@ -160,47 +160,47 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     }
 
     function excessDebt(address strategy_) external view returns (uint256) {
-        return _excessDebt(_getPoolStorage()._strategyConfig[strategy_]);
+        return _excessDebt(_getVaultStorage()._strategyConfig[strategy_]);
     }
 
     function getStrategies() external view returns (address[] memory) {
-        return _getPoolStorage()._strategies.values();
+        return _getVaultStorage()._strategies.values();
     }
 
     function getStrategyConfig(address strategy_) external view returns (StrategyConfig memory) {
-        return _getPoolStorage()._strategyConfig[strategy_];
+        return _getVaultStorage()._strategyConfig[strategy_];
     }
 
     function getWithdrawQueue() external view returns (address[] memory) {
-        return _getPoolStorage()._withdrawQueue;
+        return _getVaultStorage()._withdrawQueue;
     }
 
     function isKeeper(address address_) public view returns (bool) {
-        return _getPoolStorage()._keepers.contains(address_);
+        return _getVaultStorage()._keepers.contains(address_);
     }
 
     function isMaintainer(address address_) public view returns (bool) {
-        return _getPoolStorage()._maintainers.contains(address_);
+        return _getVaultStorage()._maintainers.contains(address_);
     }
 
     function keepers() external view returns (address[] memory) {
-        return _getPoolStorage()._keepers.values();
+        return _getVaultStorage()._keepers.values();
     }
 
     function maintainers() external view returns (address[] memory) {
-        return _getPoolStorage()._maintainers.values();
+        return _getVaultStorage()._maintainers.values();
     }
 
     function maxProfitAsFee() external view returns (uint256) {
-        return _getPoolStorage()._maxProfitAsFee;
+        return _getVaultStorage()._maxProfitAsFee;
     }
 
     function minimumDepositLimit() external view returns (uint256) {
-        return _getPoolStorage()._minimumDepositLimit;
+        return _getVaultStorage()._minimumDepositLimit;
     }
 
-    function poolRewards() external view returns (address) {
-        return _getPoolStorage()._poolRewards;
+    function vaultRewards() external view returns (address) {
+        return _getVaultStorage()._vaultRewards;
     }
 
     function pricePerShare() public view returns (uint256) {
@@ -208,24 +208,24 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     }
 
     function totalAssets() public view override returns (uint256) {
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         return $._totalDebt + super.totalAssets();
     }
 
     function totalDebt() external view returns (uint256) {
-        return _getPoolStorage()._totalDebt;
+        return _getVaultStorage()._totalDebt;
     }
 
     function totalDebtOf(address strategy_) external view returns (uint256) {
-        return _getPoolStorage()._strategyConfig[strategy_].totalDebt;
+        return _getVaultStorage()._strategyConfig[strategy_].totalDebt;
     }
 
     function totalDebtRatio() external view returns (uint256) {
-        return _getPoolStorage()._totalDebtRatio;
+        return _getVaultStorage()._totalDebtRatio;
     }
 
     function universalFee() external view returns (uint256) {
-        return _getPoolStorage()._universalFee;
+        return _getVaultStorage()._universalFee;
     }
 
     function version() external pure returns (string memory) {
@@ -240,8 +240,8 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     }
 
     /// @notice This function is needed for compatibility with V6 strategies.
-    /// @return zero address, as there is no PoolAccountant in V6 pools
-    function poolAccountant() external pure returns (address) {
+    /// @return zero address, as there is no VaultAccountant in V6 vaults
+    function vaultAccountant() external pure returns (address) {
         return address(0);
     }
 
@@ -257,14 +257,14 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
 
     /// @inheritdoc ERC4626
     function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
-        if (assets < _getPoolStorage()._minimumDepositLimit) revert AmountIsBelowDepositLimit();
+        if (assets < _getVaultStorage()._minimumDepositLimit) revert AmountIsBelowDepositLimit();
         return super.deposit(assets, receiver);
     }
 
     /// @inheritdoc ERC4626
     function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
         uint256 _assets = previewMint(shares);
-        if (_assets < _getPoolStorage()._minimumDepositLimit) revert AmountIsBelowDepositLimit();
+        if (_assets < _getVaultStorage()._minimumDepositLimit) revert AmountIsBelowDepositLimit();
         return super.mint(shares, receiver);
     }
 
@@ -293,7 +293,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      *  when governance has reduced debtRatio of strategy, strategy will report profit and payback amount separately.
      */
     function reportEarning(uint256 profit_, uint256 loss_, uint256 payback_) external {
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         address _strategy = msg.sender;
 
         StrategyConfig storage _config = $._strategyConfig[_strategy];
@@ -346,13 +346,13 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     /**
      * @notice onlyStrategy:: Report loss outside of rebalance activity.
      * @dev Some strategies pay deposit fee thus realizing loss at deposit.
-     * For example: Curve's 3pool has some slippage due to deposit of one asset in 3pool.
+     * For example: Curve's 3vault has some slippage due to deposit of one asset in 3vault.
      * Strategy may want report this loss instead of waiting for next rebalance.
      * @param loss_ Loss that strategy want to report
      */
     function reportLoss(uint256 loss_) external {
         if (loss_ > 0) {
-            PoolStorage storage $ = _getPoolStorage();
+            VaultStorage storage $ = _getVaultStorage();
             if (!$._strategyConfig[msg.sender].active) revert StrategyIsNotActive();
             _reportLoss($, msg.sender, loss_);
             emit LossReported(msg.sender, loss_);
@@ -365,15 +365,15 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
 
     /**
      * @notice onlyOwner:: Add strategy. Once strategy is added it can call rebalance and
-     * borrow fund from pool and invest that fund in provider/lender.
-     * @dev Recalculate pool level external deposit fee after all state variables are updated.
+     * borrow fund from vault and invest that fund in provider/lender.
+     * @dev Recalculate vault level external deposit fee after all state variables are updated.
      * @param strategy_ Strategy address
-     * @param debtRatio_ Pool fund allocation to this strategy
+     * @param debtRatio_ Vault fund allocation to this strategy
      */
     function addStrategy(address strategy_, uint256 debtRatio_) public onlyOwner {
         if (strategy_ == address(0)) revert AddressIsNull();
 
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         if ($._strategyConfig[strategy_].active) revert StrategyIsActive();
         $._totalDebtRatio = $._totalDebtRatio + debtRatio_;
         if ($._totalDebtRatio > MAX_BPS) revert InvalidDebtRatio();
@@ -400,7 +400,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      * @param strategy_ address of strategy to remove.
      */
     function removeStrategy(address strategy_) external onlyOwner {
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         StrategyConfig memory _strategyToRemove = $._strategyConfig[strategy_];
         if (!_strategyToRemove.active) revert StrategyIsNotActive();
         if (_strategyToRemove.totalDebt != 0) revert TotalDebtShouldBeZero();
@@ -443,7 +443,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     function updateMaximumProfitAsFee(uint256 newMaxProfitAsFee_) external onlyOwner {
         if (newMaxProfitAsFee_ > MAX_BPS) revert InputIsHigherThanMaxLimit();
 
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         emit UpdatedMaximumProfitAsFee($._maxProfitAsFee, newMaxProfitAsFee_);
         $._maxProfitAsFee = newMaxProfitAsFee_;
     }
@@ -455,32 +455,32 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     function updateMinimumDepositLimit(uint256 newLimit_) external onlyOwner {
         if (newLimit_ == 0) revert MinimumDepositLimitCannotBeZero();
 
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         emit UpdatedMinimumDepositLimit($._minimumDepositLimit, newLimit_);
         $._minimumDepositLimit = newLimit_;
     }
 
     /**
-     * @notice OnlyOwner:: Update pool rewards address for this pool
-     * @param newPoolRewards_ new pool rewards address
+     * @notice OnlyOwner:: Update vault rewards address for this vault
+     * @param newVaultRewards_ new vault rewards address
      */
-    function updatePoolRewards(address newPoolRewards_) external onlyOwner {
-        if (newPoolRewards_ == address(0)) revert AddressIsNull();
+    function updateVaultRewards(address newVaultRewards_) external onlyOwner {
+        if (newVaultRewards_ == address(0)) revert AddressIsNull();
 
-        PoolStorage storage $ = _getPoolStorage();
-        emit UpdatedPoolRewards($._poolRewards, newPoolRewards_);
-        $._poolRewards = newPoolRewards_;
+        VaultStorage storage $ = _getVaultStorage();
+        emit UpdatedVaultRewards($._vaultRewards, newVaultRewards_);
+        $._vaultRewards = newVaultRewards_;
     }
 
     /**
-     * @notice OnlyOwner:: Update universal fee for this pool
+     * @notice OnlyOwner:: Update universal fee for this vault
      * @dev Format: 1500 = 15% fee, 100 = 1%
      * @param newUniversalFee_ new universal fee
      */
     function updateUniversalFee(uint256 newUniversalFee_) external onlyOwner {
         if (newUniversalFee_ > MAX_BPS) revert InputIsHigherThanMaxLimit();
 
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         emit UpdatedUniversalFee($._universalFee, newUniversalFee_);
         $._universalFee = newUniversalFee_;
     }
@@ -510,7 +510,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      * @param keeperAddress_ keeper address to add.
      */
     function addKeeper(address keeperAddress_) external onlyKeeper {
-        if (!_getPoolStorage()._keepers.add(keeperAddress_)) revert AddInListFailed();
+        if (!_getVaultStorage()._keepers.add(keeperAddress_)) revert AddInListFailed();
     }
 
     /**
@@ -518,7 +518,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      * @param keeperAddress_ keeper address to remove.
      */
     function removeKeeper(address keeperAddress_) external onlyKeeper {
-        if (!_getPoolStorage()._keepers.remove(keeperAddress_)) revert RemoveFromListFailed();
+        if (!_getVaultStorage()._keepers.remove(keeperAddress_)) revert RemoveFromListFailed();
     }
 
     /**
@@ -526,7 +526,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      * @param maintainerAddress_ maintainer address to add.
      */
     function addMaintainer(address maintainerAddress_) external onlyKeeper {
-        if (!_getPoolStorage()._maintainers.add(maintainerAddress_)) revert AddInListFailed();
+        if (!_getVaultStorage()._maintainers.add(maintainerAddress_)) revert AddInListFailed();
     }
 
     /**
@@ -534,7 +534,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      * @param maintainerAddress_ maintainer address to remove.
      */
     function removeMaintainer(address maintainerAddress_) external onlyKeeper {
-        if (!_getPoolStorage()._maintainers.remove(maintainerAddress_)) revert RemoveFromListFailed();
+        if (!_getVaultStorage()._maintainers.remove(maintainerAddress_)) revert RemoveFromListFailed();
     }
 
     /*/////////////////////////////////////////////////////////////
@@ -544,12 +544,12 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     /**
      * @notice onlyMaintainer:: Update debt ratio.
      * @dev A strategy is retired when debtRatio is 0
-     * @dev As debtRatio impacts pool level external deposit fee hence recalculate it after updating debtRatio.
+     * @dev As debtRatio impacts vault level external deposit fee hence recalculate it after updating debtRatio.
      * @param strategy_ Strategy address for which debt ratio is being updated
      * @param debtRatio_ New debt ratio
      */
     function updateDebtRatio(address strategy_, uint256 debtRatio_) external onlyMaintainer {
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         StrategyConfig storage _config = $._strategyConfig[strategy_];
         if (!_config.active) revert StrategyIsNotActive();
         // Update totalDebtRatio
@@ -562,13 +562,13 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
 
     /**
      * @notice onlyMaintainer:: Update withdraw queue.
-     * @dev The pool typically maintains a buffer to satisfy withdrawal requests.
+     * @dev The vault typically maintains a buffer to satisfy withdrawal requests.
      * Any request exceeding the buffer level will be processed through the withdrawQueue.
      * In this case, withdrawQueue[0] will be the first strategy to receive the withdrawal request.
      * @param withdrawQueue_ List of strategy ordered by withdrawal priority.
      */
     function updateWithdrawQueue(address[] memory withdrawQueue_) external onlyMaintainer {
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         uint256 _length = withdrawQueue_.length;
         if (_length != $._withdrawQueue.length || _length != $._strategies.length()) revert ArrayLengthMismatch();
         for (uint256 i; i < _length; i++) {
@@ -584,8 +584,8 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
 
     function _beforeWithdraw(uint256 assets_) internal whenNotShutdown {
         if (assets_ == 0) revert ZeroAssets();
-        uint256 _assetsHere = _assetsInPool();
-        // If we do not have enough assets in pool then withdraw from strategy.
+        uint256 _assetsHere = _assetsInVault();
+        // If we do not have enough assets in vault then withdraw from strategy.
         if (assets_ > _assetsHere) {
             // Strategy may withdraw less than requested
             _assetsHere = _assetsHere + _withdrawFromStrategy(assets_ - _assetsHere);
@@ -597,24 +597,24 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      * @dev When strategy report loss, its debtRatio decreases to get fund back quickly.
      * Reduction is debt ratio is reduction in credit limit
      */
-    function _reportLoss(PoolStorage storage $, address strategy_, uint256 loss_) internal {
+    function _reportLoss(VaultStorage storage $, address strategy_, uint256 loss_) internal {
         StrategyConfig storage _config = $._strategyConfig[strategy_];
         if (_config.totalDebt < loss_) revert LossTooHigh();
         // increase loss of strategy
         _config.totalLoss += loss_;
-        // decrease debt for strategy and pool aka global
+        // decrease debt for strategy and vault aka global
         _config.totalDebt -= loss_;
         $._totalDebt -= loss_;
 
         // calculate change in debtRatio
         uint256 _deltaDebtRatio = Math.min((loss_ * MAX_BPS) / totalAssets(), _config.debtRatio);
-        // decrease debtRatio for strategy and pool aka global
+        // decrease debtRatio for strategy and vault aka global
         _config.debtRatio -= _deltaDebtRatio;
         $._totalDebtRatio -= _deltaDebtRatio;
     }
 
     function _withdrawFromStrategy(uint256 assets_) internal returns (uint256) {
-        PoolStorage storage $ = _getPoolStorage();
+        VaultStorage storage $ = _getVaultStorage();
         // Withdraw assets from queue
         IERC20 _asset = IERC20(asset());
         uint256 _debt;
@@ -661,13 +661,13 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      * @dev Overridden ERC20 _update() to updateReward() before mint, burn and transfer.
      */
     function _update(address from, address to, uint256 value) internal override(ERC20) {
-        address _poolRewards = _getPoolStorage()._poolRewards;
-        if (_poolRewards != address(0)) {
+        address _vaultRewards = _getVaultStorage()._vaultRewards;
+        if (_vaultRewards != address(0)) {
             if (from != address(0)) {
-                IPoolRewards(_poolRewards).updateReward(from);
+                IVaultRewards(_vaultRewards).updateReward(from);
             }
             if (to != address(0)) {
-                IPoolRewards(_poolRewards).updateReward(to);
+                IVaultRewards(_vaultRewards).updateReward(to);
             }
         }
         ERC20._update(from, to, value);
@@ -677,7 +677,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
                         Internal view functions
     /////////////////////////////////////////////////////////////*/
 
-    function _assetsInPool() internal view returns (uint256) {
+    function _assetsInVault() internal view returns (uint256) {
         return IERC20(asset()).balanceOf(address(this));
     }
 
@@ -696,21 +696,21 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
             return 0;
         }
 
-        uint256 _poolDebtLimit = (totalDebtRatio_ * _totalValue) / MAX_BPS;
-        if (totalDebt_ >= _poolDebtLimit) {
+        uint256 _vaultDebtLimit = (totalDebtRatio_ * _totalValue) / MAX_BPS;
+        if (totalDebt_ >= _vaultDebtLimit) {
             return 0;
         }
-        // take min of available debt at strategy level and at pool level.
-        uint256 _available = Math.min((_strategyDebtLimit - _currentDebt), (_poolDebtLimit - totalDebt_));
+        // take min of available debt at strategy level and at vault level.
+        uint256 _available = Math.min((_strategyDebtLimit - _currentDebt), (_vaultDebtLimit - totalDebt_));
         // take min of asset balance here and available
-        return Math.min(_assetsInPool(), _available);
+        return Math.min(_assetsInVault(), _available);
     }
 
     /**
      * @dev Calculate universal fee based on strategy's TVL, profit earned and duration between rebalance and now.
      */
     function _calculateUniversalFee(
-        PoolStorage storage $,
+        VaultStorage storage $,
         address strategy_,
         uint256 profit_
     ) private view returns (uint256 _fee) {
@@ -723,7 +723,7 @@ contract VesperPool is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     }
 
     function _decimalsOffset() internal view override returns (uint8) {
-        return _getPoolStorage()._offset;
+        return _getVaultStorage()._offset;
     }
 
     function _excessDebt(StrategyConfig memory config_) internal view returns (uint256) {
