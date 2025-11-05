@@ -122,18 +122,18 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         _disableInitializers();
     }
 
-    function initialize(string memory name_, string memory symbol_, address asset_) public initializer {
+    function initialize(string memory name_, string memory symbol_, address asset_, address owner_) public initializer {
         if (asset_ == address(0)) revert AddressIsNull();
         __ERC20_init(name_, symbol_);
         __ERC4626_init(IERC20(asset_));
         __ERC20Permit_init(name_);
-        __Ownable_init(msg.sender);
+        __Ownable_init(owner_);
         __Shutdownable_init();
 
         VaultStorage storage $ = _getVaultStorage();
 
-        $._keepers.add(msg.sender);
-        $._maintainers.add(msg.sender);
+        $._keepers.add(owner_);
+        $._maintainers.add(owner_);
         $._universalFee = 200; // 2%
         $._maxProfitAsFee = 5_000; // 50%
         $._minimumDepositLimit = 1;

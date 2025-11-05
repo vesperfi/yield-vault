@@ -25,7 +25,7 @@ contract YieldVaultTestBase is Test {
         assetUnit = 10 ** asset.decimals();
         // clear storage to initialize vault
         vm.store(address(vault), Constants.INITIALIZABLE_STORAGE, bytes32(uint256(0)));
-        vault.initialize("Yield Vault", "yieldVault", address(asset));
+        vault.initialize("Yield Vault", "yieldVault", address(asset), address(this));
     }
 
     /// @dev Usage of this function makes sure that any ERC4626 overrides are still good.

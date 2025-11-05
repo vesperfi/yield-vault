@@ -44,7 +44,8 @@ contract YieldVault_Proxy_Test is YieldVaultTestBase {
             YieldVault.initialize.selector,
             "Yield Vault",
             "yieldVault",
-            address(asset)
+            address(asset),
+            address(this)
         );
 
         // Deploy the proxy

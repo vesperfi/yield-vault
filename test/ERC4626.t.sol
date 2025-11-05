@@ -14,7 +14,7 @@ contract ERC4626StdTest is ERC4626Test {
         YieldVault _vault = new YieldVault();
         // clear storage to initialize vault
         vm.store(address(_vault), Constants.INITIALIZABLE_STORAGE, bytes32(uint256(0)));
-        _vault.initialize("Yield Vault", "yieldVault", address(_underlying_));
+        _vault.initialize("Yield Vault", "yieldVault", address(_underlying_), address(this));
 
         _vault_ = address(_vault);
         _delta_ = 0;
