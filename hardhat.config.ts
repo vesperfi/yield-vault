@@ -10,10 +10,10 @@ const ethereumNodeUrl = process.env.ETHEREUM_NODE_URL || ''
 
 function getChainConfig(nodeUrl: string) {
   if (['eth-mainnet', 'mainnet.infura'].some((v) => nodeUrl.includes(v))) {
-    return { chainId: 1, deploy: ['deploy/ethereum'] }
+    return { chainId: 1, deploy: ['deploy'] }
   }
 
-  return { chainId: 31337, deploy: ['deploy/ethereum'] }
+  return { chainId: 31337, deploy: ['deploy'] }
 }
 
 function getFork() {
@@ -54,6 +54,20 @@ const config: HardhatUserConfig = {
       accounts,
       ...getChainConfig(ethereumNodeUrl),
     },
+    hemi: {
+      url: process.env.HEMI_NODE_URL || '',
+      chainId: 43111,
+      gas: 8000000,
+      deploy: ['deploy'],
+      accounts,
+    },
+    hemi_testnet: {
+      url: process.env.HEMI_TESTNET_NODE_URL || '',
+      chainId: 743111,
+      gas: 8000000,
+      deploy: ['deploy'],
+      accounts,
+    },
   },
 
   sourcify: {
@@ -62,7 +76,28 @@ const config: HardhatUserConfig = {
 
   etherscan: {
     enabled: true,
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: {
+      hemi: 'noApiKeyNeeded',
+      hemi_testnet: 'noApiKeyNeeded',
+    },
+    customChains: [
+      {
+        network: 'hemi',
+        chainId: 43111,
+        urls: {
+          apiURL: 'https://explorer.hemi.xyz/api',
+          browserURL: 'https://explorer.hemi.xyz',
+        },
+      },
+      {
+        network: 'hemi_testnet',
+        chainId: 743111,
+        urls: {
+          apiURL: 'https://testnet.explorer.hemi.xyz/api',
+          browserURL: 'https://testnet.explorer.hemi.xyz',
+        },
+      },
+    ],
   },
 
   namedAccounts: {

@@ -13,20 +13,20 @@ import {YieldVault} from "./YieldVault.sol";
  */
 contract YieldVaultFactory is Ownable2Step {
     /// @notice Address of the YieldVault implementation contract (for proxy deployments)
-    address public implementation;
+    address public vaultImplementation;
 
     /// @notice Emitted when a new upgradable vault is created
     /// @param vault Address of the newly created vault proxy
     /// @param name Name of the vault token
     /// @param symbol Symbol of the vault token
     /// @param asset Address of the underlying asset
-    /// @param creator Address that created the vault
+    /// @param owner Owner of the vault
     event UpgradableVaultCreated(
         address indexed vault,
         string name,
         string symbol,
         address indexed asset,
-        address indexed creator
+        address indexed owner
     );
 
     /// @notice Emitted when the implementation address is updated
@@ -38,12 +38,12 @@ contract YieldVaultFactory is Ownable2Step {
 
     /**
      * @notice Constructor sets the YieldVault implementation address and initial owner
-     * @param implementation_ Address of the YieldVault implementation contract (for proxy deployments)
+     * @param vaultImplementation_ Address of the YieldVault implementation contract (for proxy deployments)
      * @param owner_ Address of the initial owner
      */
-    constructor(address implementation_, address owner_) Ownable(owner_) {
-        if (implementation_ == address(0)) revert AddressIsNull();
-        implementation = implementation_;
+    constructor(address vaultImplementation_, address owner_) Ownable(owner_) {
+        if (vaultImplementation_ == address(0)) revert AddressIsNull();
+        vaultImplementation = vaultImplementation_;
     }
 
     /**
@@ -53,8 +53,8 @@ contract YieldVaultFactory is Ownable2Step {
      */
     function updateImplementation(address newImplementation_) external onlyOwner {
         if (newImplementation_ == address(0)) revert AddressIsNull();
-        address oldImplementation = implementation;
-        implementation = newImplementation_;
+        address oldImplementation = vaultImplementation;
+        vaultImplementation = newImplementation_;
         emit ImplementationUpdated(oldImplementation, newImplementation_);
     }
 
@@ -65,7 +65,12 @@ contract YieldVaultFactory is Ownable2Step {
      * @param asset_ Address of the underlying asset (ERC20 token)
      * @return vault Address of the newly created vault
      */
-    function createVault(string memory name_, string memory symbol_, address asset_) public returns (address vault) {
+    function createVault(
+        string memory name_,
+        string memory symbol_,
+        address asset_,
+        address owner_
+    ) public returns (address vault) {
         if (asset_ == address(0)) revert AddressIsNull();
 
         // Create upgradable vault using ERC1967Proxy
@@ -74,11 +79,11 @@ contract YieldVaultFactory is Ownable2Step {
             name_,
             symbol_,
             asset_,
-            msg.sender
+            owner_
         );
-        ERC1967Proxy proxy = new ERC1967Proxy(implementation, initData);
+        ERC1967Proxy proxy = new ERC1967Proxy(vaultImplementation, initData);
         vault = address(proxy);
-        emit UpgradableVaultCreated(vault, name_, symbol_, asset_, msg.sender);
+        emit UpgradableVaultCreated(vault, name_, symbol_, asset_, owner_);
 
         return vault;
     }

@@ -1,5 +1,5 @@
 import { DeployFunction } from "hardhat-deploy/types";
-import { YIELD_VAULT, YIELD_VAULT_FACTORY } from "../../helpers/deploy-config";
+import { YIELD_VAULT, YIELD_VAULT_FACTORY } from "../helpers/deploy-config";
 
 const func: DeployFunction = async function (hre) {
   const { deployments, getNamedAccounts } = hre;
