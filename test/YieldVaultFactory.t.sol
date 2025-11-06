@@ -30,7 +30,7 @@ contract YieldVaultFactoryTest is Test {
 
         // Deploy factory with owner
         vm.prank(owner);
-        factory = new YieldVaultFactory(address(implementation), address(this));
+        factory = new YieldVaultFactory(address(implementation), owner);
 
         // Deploy mock asset
         asset = new MockERC20();
@@ -41,7 +41,8 @@ contract YieldVaultFactoryTest is Test {
     /////////////////////////////////////////////////////////////*/
 
     function test_createVault_upgradable() public {
-        address vault = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset));
+        vm.prank(alice);
+        address vault = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset), address(this));
 
         assertNotEq(vault, address(0));
         assertNotEq(vault, address(implementation));
@@ -57,8 +58,8 @@ contract YieldVaultFactoryTest is Test {
     function test_createVault_upgradable_differentAssets() public {
         MockERC20 asset2 = new MockERC20();
 
-        address vault1 = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset));
-        address vault2 = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset2));
+        address vault1 = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset), address(this));
+        address vault2 = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset2), address(this));
 
         assertNotEq(vault1, vault2);
 
@@ -82,7 +83,7 @@ contract YieldVaultFactoryTest is Test {
         vm.prank(owner);
         factory.updateImplementation(address(newImplementation));
 
-        assertEq(factory.implementation(), address(newImplementation));
+        assertEq(factory.vaultImplementation(), address(newImplementation));
     }
 
     function test_updateImplementation_revertWhen_callerIsNotOwner() public {
