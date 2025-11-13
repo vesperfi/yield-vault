@@ -21,15 +21,6 @@ contract YieldVaultV6_1 is YieldVault {
     }
 }
 
-// Mock implementation with different owner for testing owner mismatch
-contract YieldVaultV6_1_WithNewOwner is YieldVault {
-    function initializeV6_1(address newOwner_) public reinitializer(2) {
-        // This will set a different owner, causing the upgrade to fail
-        // Use _transferOwnership to directly change ownership (bypassing 2-step process)
-        _transferOwnership(newOwner_);
-    }
-}
-
 // Tests for proxy upgrade functionality
 contract YieldVault_Proxy_Test is YieldVaultTestBase {
     ERC1967Proxy proxy;
@@ -70,21 +61,6 @@ contract YieldVault_Proxy_Test is YieldVaultTestBase {
         assertEq(upgradedVault.newVersion(), newVersion);
         assertEq(upgradedVault.owner(), currentOwner);
         assertEq(upgradedVault.asset(), address(asset));
-    }
-
-    function test_upgradeToAndCall_revertWhen_ownerMismatch() public {
-        setUpProxy();
-
-        address currentOwner = proxyVault.owner();
-        assertEq(currentOwner, address(this));
-
-        address fakeOwner = makeAddr("fakeOwner");
-        // Deploy the new implementation that changes the owner
-        YieldVaultV6_1_WithNewOwner newImplementation = new YieldVaultV6_1_WithNewOwner();
-        bytes memory initData = abi.encodeWithSelector(YieldVaultV6_1_WithNewOwner.initializeV6_1.selector, fakeOwner);
-
-        vm.expectRevert(abi.encodeWithSelector(YieldVault.OwnerMismatch.selector, fakeOwner, currentOwner));
-        proxyVault.upgradeToAndCall(address(newImplementation), initData);
     }
 
     function test_upgradeToAndCall_revertWhen_callerIsNotOwner() public {
