@@ -240,12 +240,6 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     }
 
     /// @notice This function is needed for compatibility with V6 strategies.
-    /// @return zero address, as there is no VaultAccountant in V6 vaults
-    function vaultAccountant() external pure returns (address) {
-        return address(0);
-    }
-
-    /// @notice This function is needed for compatibility with V6 strategies.
     /// @return asset address
     function token() external view returns (address) {
         return asset();
