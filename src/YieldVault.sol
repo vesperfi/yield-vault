@@ -37,7 +37,6 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     error InvalidDebtRatio();
     error MinimumDepositLimitCannotBeZero();
     error LossTooHigh();
-    error OwnerMismatch(address, address);
     error RemoveFromListFailed();
     error StrategyIsActive();
     error StrategyIsNotActive();
@@ -734,12 +733,4 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     /////////////////////////////////////////////////////////////*/
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
-
-    function upgradeToAndCall(address newImplementation, bytes memory data) public payable override onlyProxy {
-        address _ownerBefore = owner();
-        super.upgradeToAndCall(newImplementation, data);
-        // owner should be same before and after upgrade.
-        address _ownerAfter = owner();
-        if (_ownerAfter != _ownerBefore) revert OwnerMismatch(_ownerAfter, _ownerBefore);
-    }
 }
