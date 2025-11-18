@@ -1,5 +1,7 @@
-import { DeployFunction } from "hardhat-deploy/types";
-import { YIELD_VAULT, YIELD_VAULT_FACTORY } from "../helpers/deploy-config";
+import { DeployFunction } from 'hardhat-deploy/types';
+
+const YIELD_VAULT_FACTORY = 'YieldVaultFactory';
+const YIELD_VAULT = 'YieldVault';
 
 const func: DeployFunction = async function (hre) {
   const { deployments, getNamedAccounts } = hre;
@@ -27,10 +29,9 @@ const func: DeployFunction = async function (hre) {
   });
 
   log(`YieldVaultFactory deployed at: ${factoryDeployment.address}`);
-  log(`Factory implementation: ${implementationAddress}`);
 };
 
-func.tags = ["YieldVaultFactory"];
-func.dependencies = ["YieldVaultImplementation"]; // Depends on implementation deployment
+func.dependencies = [YIELD_VAULT]; // Depends on implementation deployment
+func.tags = [YIELD_VAULT_FACTORY];
 
 export default func;

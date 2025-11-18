@@ -1,9 +1,10 @@
-import { DeployFunction } from "hardhat-deploy/types";
-import { YIELD_VAULT } from "../helpers/deploy-config";
+import { DeployFunction } from 'hardhat-deploy/types';
+
+const YIELD_VAULT = 'YieldVault';
 
 const func: DeployFunction = async function (hre) {
   const { deployments, getNamedAccounts } = hre;
-  const { deploy, get, getOrNull, log } = deployments;
+  const { deploy, getOrNull, log } = deployments;
   const { deployer } = await getNamedAccounts();
 
   if (!deployer) {
@@ -29,11 +30,8 @@ const func: DeployFunction = async function (hre) {
   });
 
   log(`✓ YieldVault implementation deployed at: ${implementationDeployment.address}`);
-  log(`  Contract: ${YIELD_VAULT}`);
-  log(`  Alias: ${implementationAlias}`);
 };
 
-func.tags = ["YieldVaultImplementation"];
-func.dependencies = []; // No dependencies
+func.tags = [YIELD_VAULT];
 
 export default func;

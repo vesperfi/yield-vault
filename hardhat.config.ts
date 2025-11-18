@@ -1,23 +1,30 @@
-import { HardhatUserConfig } from 'hardhat/types'
-import '@nomicfoundation/hardhat-toolbox'
-import '@nomicfoundation/hardhat-foundry'
-import '@openzeppelin/hardhat-upgrades'
-import 'hardhat-deploy'
-import 'dotenv/config'
+import { HardhatUserConfig } from 'hardhat/types';
+import '@nomicfoundation/hardhat-toolbox';
+import '@nomicfoundation/hardhat-foundry';
+import '@openzeppelin/hardhat-upgrades';
+import 'hardhat-deploy';
+import 'dotenv/config';
 
-const localhost = process.env.FORK_NODE_URL || 'http://localhost:8545'
-const ethereumNodeUrl = process.env.ETHEREUM_NODE_URL || ''
+const localhost = process.env.FORK_NODE_URL || 'http://localhost:8545';
 
-function getChainConfig(nodeUrl: string) {
+function getChainId(nodeUrl: string) {
   if (['eth-mainnet', 'mainnet.infura'].some((v) => nodeUrl.includes(v))) {
-    return { chainId: 1, deploy: ['deploy'] }
+    return 1;
   }
 
-  return { chainId: 31337, deploy: ['deploy'] }
+  if (['testnet.rpc.hemi', 'hemi-testnet'].some((v) => nodeUrl.includes(v))) {
+    return 743111;
+  }
+
+  if (['hemi.network', 'hemi.drpc'].some((v) => nodeUrl.includes(v))) {
+    return 43111;
+  }
+
+  return 31337;
 }
 
 function getFork() {
-  const nodeUrl = process.env.FORK_NODE_URL
+  const nodeUrl = process.env.FORK_NODE_URL;
   return nodeUrl
     ? {
         initialBaseFeePerGas: 0,
@@ -25,18 +32,18 @@ function getFork() {
           url: nodeUrl,
           blockNumber: process.env.FORK_BLOCK_NUMBER ? parseInt(process.env.FORK_BLOCK_NUMBER) : undefined,
         },
-        ...getChainConfig(nodeUrl),
+        chainId: getChainId(nodeUrl),
       } // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    : ({} as any)
+    : ({} as any);
 }
 
-let accounts
+let accounts;
 if (process.env.MNEMONIC) {
-  accounts = { mnemonic: process.env.MNEMONIC }
+  accounts = { mnemonic: process.env.MNEMONIC };
 }
 
 if (process.env.PRIVATE_KEY) {
-  accounts = [process.env.PRIVATE_KEY]
+  accounts = [process.env.PRIVATE_KEY];
 }
 
 const config: HardhatUserConfig = {
@@ -46,26 +53,22 @@ const config: HardhatUserConfig = {
     localhost: {
       accounts,
       saveDeployments: true,
-      ...getChainConfig(localhost),
+      chainId: getChainId(localhost),
       autoImpersonate: true,
     },
     ethereum: {
-      url: ethereumNodeUrl,
+      url: process.env.ETHEREUM_NODE_URL || '',
+      chainId: 1,
       accounts,
-      ...getChainConfig(ethereumNodeUrl),
     },
     hemi: {
       url: process.env.HEMI_NODE_URL || '',
       chainId: 43111,
-      gas: 8000000,
-      deploy: ['deploy'],
       accounts,
     },
     hemi_testnet: {
       url: process.env.HEMI_TESTNET_NODE_URL || '',
       chainId: 743111,
-      gas: 8000000,
-      deploy: ['deploy'],
       accounts,
     },
   },
@@ -113,6 +116,6 @@ const config: HardhatUserConfig = {
       },
     },
   },
-}
+};
 
-export default config
+export default config;
