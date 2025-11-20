@@ -18,11 +18,11 @@ contract YieldVault_Strategy_Test is YieldVaultTestBase {
         vm.stopPrank();
     }
 
-    function _calculateFee(YieldVault vault_, address strategy_) internal view returns (uint256 _fee) {
-        YieldVault.StrategyConfig memory _config = vault_.getStrategyConfig(strategy_);
-        _fee =
-            (vault_.universalFee() * (block.timestamp - _config.lastRebalance) * _config.totalDebt) /
-            (Constants.MAX_BPS * Constants.ONE_YEAR);
+    function _calculateFee(YieldVault vault_, uint256 profit_) internal view returns (uint256 _fee) {
+        uint256 _performanceFee = vault_.performanceFee();
+        if (_performanceFee > 0) {
+            _fee = (profit_ * _performanceFee) / Constants.MAX_BPS;
+        }
     }
 
     function test_reportEarning() public {
@@ -161,12 +161,14 @@ contract YieldVault_Strategy_Test is YieldVaultTestBase {
         vm.warp(block.timestamp + 1 days); // time travel to earn some fee
         uint256 _ppsBefore = vault.pricePerShare();
 
+        // Set performance fee
+        vault.updatePerformanceFee(200); // 2%
         // mock call to return feeCollector
         vm.mockCall(strategy, abi.encodeWithSelector(IStrategy.feeCollector.selector), abi.encode(feeCollector));
         // report payback
         vm.startPrank(strategy);
         uint256 _profitAmount = 5 * assetUnit;
-        uint256 _expectedFee = _calculateFee(vault, strategy);
+        uint256 _expectedFee = _calculateFee(vault, _profitAmount);
         asset.approve(address(vault), _profitAmount);
         vault.reportEarning(_profitAmount, 0, 0);
         vm.stopPrank();
@@ -184,14 +186,15 @@ contract YieldVault_Strategy_Test is YieldVaultTestBase {
         vault.reportEarning(0, 0, 0); // deploy fund in strategy
         vm.warp(block.timestamp + 1 days); // time travel to earn some fee
 
+        // Set performance fee
+        vault.updatePerformanceFee(200); // 2%
         // mock call to return feeCollector
         vm.mockCall(strategy, abi.encodeWithSelector(IStrategy.feeCollector.selector), abi.encode(feeCollector));
         // report payback
         vm.startPrank(strategy);
         uint256 _profitAmount = (5 * assetUnit) / 1000; // very less amount as profit
-        // 0.005 assetUnit as profit will lead fee being more than vault.maxProfitAsFee() percentage of profit
-        // and in this case fee will be calculated as given below.
-        uint256 _expectedFee = (_profitAmount * vault.maxProfitAsFee()) / Constants.MAX_BPS;
+        // Fee is calculated as percentage of profit
+        uint256 _expectedFee = _calculateFee(vault, _profitAmount);
         asset.approve(address(vault), _profitAmount);
         vault.reportEarning(_profitAmount, 0, 0);
         vm.stopPrank();
