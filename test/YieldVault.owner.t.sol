@@ -17,7 +17,6 @@ contract YieldVault_Owner_Test is YieldVaultTestBase {
         YieldVault.StrategyConfig memory _config = vault.getStrategyConfig(strategy);
         assertTrue(_config.active);
         assertEq(_config.debtRatio, debtRatio);
-        assertEq(_config.lastRebalance, block.timestamp);
 
         assertEq(vault.totalDebtRatio(), debtRatio);
         assertEq(vault.getStrategies()[0], strategy);
@@ -150,23 +149,23 @@ contract YieldVault_Owner_Test is YieldVaultTestBase {
         vault.sweep(_token, address(0));
     }
 
-    function test_updateMaximumProfitAsFee() public {
-        // default value is 5_000 aka 50%
-        assertEq(vault.maxProfitAsFee(), 5_000);
-        vault.updateMaximumProfitAsFee(4_000);
-        assertEq(vault.maxProfitAsFee(), 4_000);
+    function test_updatePerformanceFee() public {
+        // default value is 0
+        assertEq(vault.performanceFee(), 0);
+        vault.updatePerformanceFee(4_000);
+        assertEq(vault.performanceFee(), 4_000);
     }
 
-    function test_updateMaximumProfitAsFee_revertWhen_callerItNotOwner() public {
+    function test_updatePerformanceFee_revertWhen_callerItNotOwner() public {
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
         vm.prank(alice);
-        vault.updateMaximumProfitAsFee(4_000);
+        vault.updatePerformanceFee(4_000);
     }
 
-    function test_updateMaximumProfitAsFee_revertWhen_inputIsHigherThanMaxLimit() public {
+    function test_updatePerformanceFee_revertWhen_inputIsHigherThanMaxLimit() public {
         // 10_000 is max allowed
         vm.expectRevert(YieldVault.InputIsHigherThanMaxLimit.selector);
-        vault.updateMaximumProfitAsFee(11_000);
+        vault.updatePerformanceFee(11_000);
     }
 
     function test_updateMinimumDepositLimit() public {
@@ -203,24 +202,5 @@ contract YieldVault_Owner_Test is YieldVaultTestBase {
     function test_updateVaultRewards_revertWhen_VaultRewardsIsNull() public {
         vm.expectRevert(YieldVault.AddressIsNull.selector);
         vault.updateVaultRewards(address(0));
-    }
-
-    function test_updateUniversalFee() public {
-        // default value is 200 aka 2%
-        assertEq(vault.universalFee(), 200);
-        vault.updateUniversalFee(300);
-        assertEq(vault.universalFee(), 300);
-    }
-
-    function test_updateUniversalFee_revertWhen_callerItNotOwner() public {
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
-        vm.prank(alice);
-        vault.updateUniversalFee(300);
-    }
-
-    function test_updateUniversalFee_revertWhen_inputIsHigherThanMaxLimit() public {
-        // 10_000 is max allowed
-        vm.expectRevert(YieldVault.InputIsHigherThanMaxLimit.selector);
-        vault.updateUniversalFee(11_000);
     }
 }
