@@ -35,6 +35,7 @@ contract YieldVaultFactory is Ownable2Step {
     event ImplementationUpdated(address indexed oldImplementation, address indexed newImplementation);
 
     error AddressIsNull();
+    error ImplementationIsNotContract();
 
     /**
      * @notice Constructor sets the YieldVault implementation address and initial owner
@@ -53,6 +54,7 @@ contract YieldVaultFactory is Ownable2Step {
      */
     function updateImplementation(address newImplementation_) external onlyOwner {
         if (newImplementation_ == address(0)) revert AddressIsNull();
+        if (newImplementation_.code.length == 0) revert ImplementationIsNotContract();
         address oldImplementation = vaultImplementation;
         vaultImplementation = newImplementation_;
         emit ImplementationUpdated(oldImplementation, newImplementation_);
@@ -70,7 +72,7 @@ contract YieldVaultFactory is Ownable2Step {
         string memory symbol_,
         address asset_,
         address owner_
-    ) public returns (address vault) {
+    ) public onlyOwner returns (address vault) {
         if (asset_ == address(0)) revert AddressIsNull();
 
         // Create upgradable vault using ERC1967Proxy
