@@ -133,7 +133,11 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         $._maintainers.add(owner_);
         $._minimumDepositLimit = 1;
         // calculate decimal offset once
-        $._offset = 18 - IERC20Metadata(asset_).decimals();
+        // if decimals is 18 or above then _offset can be zero.
+        uint8 _decimals = IERC20Metadata(asset_).decimals();
+        if (_decimals < 18) {
+            $._offset = 18 - _decimals;
+        }
     }
 
     modifier onlyKeeper() {
