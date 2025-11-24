@@ -245,13 +245,13 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     /////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ERC4626
-    function deposit(uint256 assets, address receiver) public override whenNotPaused returns (uint256) {
+    function deposit(uint256 assets, address receiver) public override whenNotPaused whenNotShutdown returns (uint256) {
         if (assets < _getVaultStorage()._minimumDepositLimit) revert AmountIsBelowDepositLimit();
         return super.deposit(assets, receiver);
     }
 
     /// @inheritdoc ERC4626
-    function mint(uint256 shares, address receiver) public override whenNotPaused returns (uint256) {
+    function mint(uint256 shares, address receiver) public override whenNotPaused whenNotShutdown returns (uint256) {
         uint256 _assets = previewMint(shares);
         if (_assets < _getVaultStorage()._minimumDepositLimit) revert AmountIsBelowDepositLimit();
         return super.mint(shares, receiver);
