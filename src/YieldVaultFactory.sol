@@ -65,6 +65,7 @@ contract YieldVaultFactory is Ownable2Step {
      * @param name_ Name of the vault token (e.g., "Vesper vault USDC")
      * @param symbol_ Symbol of the vault token (e.g., "vUSDC")
      * @param asset_ Address of the underlying asset (ERC20 token)
+     * @param owner_ Address that will own the created vault
      * @return vault Address of the newly created vault
      */
     function createVault(

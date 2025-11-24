@@ -43,6 +43,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     error TotalDebtShouldBeZero();
     error ZeroAssets();
     error ZeroShares();
+    error DuplicateStrategyInQueue();
 
     event EarningReported(
         address indexed strategy,
@@ -101,7 +102,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     }
 
     // keccak256(abi.encode(uint256(keccak256("vault.storage.YieldVault")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant VaultStorageLocation = 0xbaeaf235c9c9807c1f4a2c352810dd4cb4b0d3d0f2cf0b692f9279e99df38e00;
+    bytes32 private constant VaultStorageLocation = 0xea9b954cc57c3e4e2cc61f2841492d7ea35a35ae7a8ac017d9e469b796800500;
 
     function _getVaultStorage() private pure returns (VaultStorage storage $) {
         assembly {
@@ -541,9 +542,18 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         VaultStorage storage $ = _getVaultStorage();
         uint256 _length = withdrawQueue_.length;
         if (_length != $._withdrawQueue.length || _length != $._strategies.length()) revert ArrayLengthMismatch();
+
+        // Check for duplicates and validate strategies
         for (uint256 i; i < _length; i++) {
-            if (!$._strategyConfig[withdrawQueue_[i]].active) revert StrategyIsNotActive();
+            address strategy = withdrawQueue_[i];
+            if (!$._strategyConfig[strategy].active) revert StrategyIsNotActive();
+
+            // Check for duplicates by comparing with previous elements
+            for (uint256 j; j < i; j++) {
+                if (withdrawQueue_[j] == strategy) revert DuplicateStrategyInQueue();
+            }
         }
+
         $._withdrawQueue = withdrawQueue_;
         emit UpdatedWithdrawQueue();
     }

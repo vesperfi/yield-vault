@@ -82,4 +82,16 @@ contract YieldVault_Maintainer_Test is YieldVaultTestBase {
         _newWithdrawQueue[1] = _newStrategy;
         vault.updateWithdrawQueue(_newWithdrawQueue);
     }
+
+    function test_updateWithdrawQueue_revertWhen_duplicateStrategy() public {
+        vault.addStrategy(strategy, debtRatio);
+        vault.addStrategy(strategy2, debtRatio2);
+        assertEq(vault.getWithdrawQueue().length, 2);
+
+        vm.expectRevert(YieldVault.DuplicateStrategyInQueue.selector);
+        address[] memory _newWithdrawQueue = new address[](2);
+        _newWithdrawQueue[0] = strategy;
+        _newWithdrawQueue[1] = strategy; // Duplicate strategy
+        vault.updateWithdrawQueue(_newWithdrawQueue);
+    }
 }

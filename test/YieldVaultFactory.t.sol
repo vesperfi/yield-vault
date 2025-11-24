@@ -41,7 +41,7 @@ contract YieldVaultFactoryTest is Test {
     /////////////////////////////////////////////////////////////*/
 
     function test_createVault_upgradable() public {
-        vm.prank(alice);
+        vm.prank(owner);
         address vault = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset), address(this));
 
         assertNotEq(vault, address(0));
@@ -57,9 +57,10 @@ contract YieldVaultFactoryTest is Test {
 
     function test_createVault_upgradable_differentAssets() public {
         MockERC20 asset2 = new MockERC20();
-
+        vm.startPrank(owner);
         address vault1 = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset), address(this));
         address vault2 = factory.createVault(VAULT_NAME, VAULT_SYMBOL, address(asset2), address(this));
+        vm.stopPrank();
 
         assertNotEq(vault1, vault2);
 
