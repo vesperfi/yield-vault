@@ -56,14 +56,25 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         uint256 creditLine
     );
     event LossReported(address indexed strategy, uint256 loss);
-    event StrategyAdded(address indexed strategy, uint256 debtRatio);
-    event StrategyRemoved(address indexed strategy);
-    event PerformanceFeePaid(uint256 strategyDebt, uint256 profit, uint256 fee);
+    event StrategyAdded(address indexed strategy, uint256 debtRatio, uint256 totalDebtRatio);
+    event StrategyRemoved(address indexed strategy, uint256 debtRatio, uint256 totalDebtRatio);
+    event PerformanceFeePaid(address indexed strategy, uint256 strategyDebt, uint256 profit, uint256 fee);
     event UpdatedMinimumDepositLimit(uint256 oldDepositLimit, uint256 newDepositLimit);
     event UpdatedVaultRewards(address indexed previousVaultRewards, address indexed newVaultRewards);
-    event UpdatedStrategyDebtRatio(address indexed strategy, uint256 oldDebtRatio, uint256 newDebtRatio);
+    event UpdatedStrategyDebtRatio(
+        address indexed strategy,
+        uint256 oldDebtRatio,
+        uint256 newDebtRatio,
+        uint256 totalDebtRatio
+    );
     event UpdatedPerformanceFee(uint256 oldPerformanceFee, uint256 newPerformanceFee);
     event UpdatedWithdrawQueue();
+    event KeeperAdded(address indexed keeper);
+    event KeeperRemoved(address indexed keeper);
+    event MaintainerAdded(address indexed maintainer);
+    event MaintainerRemoved(address indexed maintainer);
+
+    event Swept(address indexed token, address indexed to, uint256 amount);
 
     /*/////////////////////////////////////////////////////////////
                                 Storage
@@ -307,7 +318,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
                 // Mint shares equal to fee
                 if (_fee > 0) {
                     _mint(IStrategy(_strategy).feeCollector(), convertToShares(_fee));
-                    emit PerformanceFeePaid(_config.totalDebt, profit_, _fee);
+                    emit PerformanceFeePaid(_strategy, _config.totalDebt, profit_, _fee);
                 }
             }
         }
@@ -384,7 +395,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         $._strategyConfig[strategy_] = newStrategy;
         $._strategies.add(strategy_);
         $._withdrawQueue.push(strategy_);
-        emit StrategyAdded(strategy_, debtRatio_);
+        emit StrategyAdded(strategy_, debtRatio_, $._totalDebtRatio);
     }
 
     /**
@@ -417,7 +428,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
             }
         }
         $._withdrawQueue = _withdrawQueue;
-        emit StrategyRemoved(strategy_);
+        emit StrategyRemoved(strategy_, _strategyToRemove.debtRatio, $._totalDebtRatio);
     }
 
     /**
@@ -428,7 +439,10 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     function sweep(address fromToken_, address to_) external onlyOwner {
         if (to_ == address(0)) revert AddressIsNull();
         if (fromToken_ == asset()) revert FromTokenCannotBeAsset();
-        IERC20(fromToken_).safeTransfer(to_, IERC20(fromToken_).balanceOf(address(this)));
+        uint256 _amount = IERC20(fromToken_).balanceOf(address(this));
+        if (_amount == 0) return;
+        IERC20(fromToken_).safeTransfer(to_, _amount);
+        emit Swept(fromToken_, to_, _amount);
     }
 
     /**
@@ -500,6 +514,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      */
     function addKeeper(address keeperAddress_) external onlyKeeper {
         if (!_getVaultStorage()._keepers.add(keeperAddress_)) revert AddInListFailed();
+        emit KeeperAdded(keeperAddress_);
     }
 
     /**
@@ -508,6 +523,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      */
     function removeKeeper(address keeperAddress_) external onlyKeeper {
         if (!_getVaultStorage()._keepers.remove(keeperAddress_)) revert RemoveFromListFailed();
+        emit KeeperRemoved(keeperAddress_);
     }
 
     /**
@@ -516,6 +532,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      */
     function addMaintainer(address maintainerAddress_) external onlyKeeper {
         if (!_getVaultStorage()._maintainers.add(maintainerAddress_)) revert AddInListFailed();
+        emit MaintainerAdded(maintainerAddress_);
     }
 
     /**
@@ -524,6 +541,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
      */
     function removeMaintainer(address maintainerAddress_) external onlyKeeper {
         if (!_getVaultStorage()._maintainers.remove(maintainerAddress_)) revert RemoveFromListFailed();
+        emit MaintainerRemoved(maintainerAddress_);
     }
 
     /*/////////////////////////////////////////////////////////////
@@ -544,7 +562,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         // Update totalDebtRatio
         $._totalDebtRatio = ($._totalDebtRatio - _config.debtRatio) + debtRatio_;
         if ($._totalDebtRatio > MAX_BPS) revert InvalidDebtRatio();
-        emit UpdatedStrategyDebtRatio(strategy_, _config.debtRatio, debtRatio_);
+        emit UpdatedStrategyDebtRatio(strategy_, _config.debtRatio, debtRatio_, $._totalDebtRatio);
         // Write to storage
         _config.debtRatio = debtRatio_;
     }
