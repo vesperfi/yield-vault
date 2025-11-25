@@ -28,23 +28,24 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     error AddressIsNull();
     error AmountIsBelowDepositLimit();
     error ArrayLengthMismatch();
-    error AssetsCanNotBeWithdrawn(uint256 _maxWithdrawable);
+    error AssetsCanNotBeWithdrawn(uint256 maxWithdrawable);
     error CallerIsNotKeeper();
     error CallerIsNotMaintainer();
+    error DuplicateStrategyInQueue();
     error FromTokenCannotBeAsset();
+    error IncorrectPayback(uint256 actual, uint256 expected);
     error InputIsHigherThanMaxLimit();
     error InsufficientBalance();
     error InvalidDebtRatio();
     error MinimumDepositLimitCannotBeZero();
     error LossTooHigh();
+    error ProfitAndLossCannotBeReportedTogether();
     error RemoveFromListFailed();
     error StrategyIsActive();
     error StrategyIsNotActive();
     error TotalDebtShouldBeZero();
     error ZeroAssets();
     error ZeroShares();
-    error DuplicateStrategyInQueue();
-    error ProfitAndLossCannotBeReportedTogether();
 
     event EarningReported(
         address indexed strategy,
@@ -326,8 +327,10 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         if (loss_ > 0) {
             _reportLoss($, _strategy, loss_);
         }
-
-        uint256 _actualPayback = Math.min(_excessDebt(_config), payback_);
+        uint256 _expectedPayback = _excessDebt(_config);
+        // Make sure strategy do not report profit until excessDebt is paid.
+        if (profit_ > 0 && payback_ < _expectedPayback) revert IncorrectPayback(payback_, _expectedPayback);
+        uint256 _actualPayback = Math.min(_expectedPayback, payback_);
         if (_actualPayback > 0) {
             _config.totalDebt -= _actualPayback;
             $._totalDebt -= _actualPayback;
