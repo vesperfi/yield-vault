@@ -151,6 +151,26 @@ contract YieldVault_Strategy_Test is YieldVaultTestBase {
         assertEq(_config.totalDebt, _expectedDebt);
     }
 
+    function test_reportEarning_profitAndPayback_revertWithIncorrectPayback() public {
+        vault.addStrategy(strategy, debtRatio);
+        uint256 _assets = 100 * assetUnit;
+        _deposit(vault, alice, _assets);
+        vm.prank(strategy);
+        vault.reportEarning(0, 0, 0); // deploy fund in strategy
+        // decrease debt ratio for rebalance
+        uint256 _newDebtRatio = debtRatio - 1_000;
+        vault.updateDebtRatio(strategy, _newDebtRatio);
+
+        vm.startPrank(strategy);
+        uint256 _profitAmount = 5 * assetUnit;
+        // report payback less than excessDebt
+        uint256 _payback = vault.excessDebt(strategy) - 1;
+        asset.approve(address(vault), _profitAmount + _payback);
+        vm.expectRevert(abi.encodeWithSelector(YieldVault.IncorrectPayback.selector, _payback, _payback + 1));
+        vault.reportEarning(_profitAmount, 0, _payback);
+        vm.stopPrank();
+    }
+
     function test_reportEarning_profitWithUniversalFee() public {
         vault.addStrategy(strategy, debtRatio);
         uint256 _assets = 100 * assetUnit;
