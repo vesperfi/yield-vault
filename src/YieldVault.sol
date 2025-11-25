@@ -28,9 +28,10 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     error AddressIsNull();
     error AmountIsBelowDepositLimit();
     error ArrayLengthMismatch();
-    error AssetsCanNotBeWithdrawn(uint256 _maxWithdrawable);
+    error AssetsCanNotBeWithdrawn(uint256 maxWithdrawable);
     error CallerIsNotKeeper();
     error CallerIsNotMaintainer();
+    error DuplicateStrategyInQueue();
     error FromTokenCannotBeAsset();
     error IncorrectPayback(uint256 actual, uint256 expected);
     error InputIsHigherThanMaxLimit();
@@ -38,14 +39,13 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     error InvalidDebtRatio();
     error MinimumDepositLimitCannotBeZero();
     error LossTooHigh();
+    error ProfitAndLossCannotBeReportedTogether();
     error RemoveFromListFailed();
     error StrategyIsActive();
     error StrategyIsNotActive();
     error TotalDebtShouldBeZero();
     error ZeroAssets();
     error ZeroShares();
-    error DuplicateStrategyInQueue();
-    error ProfitAndLossCannotBeReportedTogether();
 
     event EarningReported(
         address indexed strategy,
