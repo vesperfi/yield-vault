@@ -87,13 +87,6 @@ abstract contract ShutdownableUpgradeable is PausableUpgradeable {
     }
 
     /**
-     * @dev Returns true if the contract is paused or shutdown, and false otherwise.
-     */
-    function paused() public view override returns (bool) {
-        return super.paused() || isShutdown();
-    }
-
-    /**
      * @dev Returns true if the contract is shutdown, and false otherwise.
      */
     function isShutdown() public view virtual returns (bool) {
@@ -117,18 +110,6 @@ abstract contract ShutdownableUpgradeable is PausableUpgradeable {
         if (!isShutdown()) {
             revert ExpectedShutdown();
         }
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     * - The contract must not be shutdown.
-     */
-    function _unpause() internal override whenNotShutdown whenPaused {
-        super._unpause();
     }
 
     /**

@@ -30,16 +30,20 @@ contract YieldVault_Keeper_Test is YieldVaultTestBase {
         assertFalse(vault.paused());
     }
 
+    function test_unpause_whenVaultIsPausedAndShutdown() public {
+        vault.pause();
+        vault.shutdown();
+        assertTrue(vault.paused());
+        assertTrue(vault.isShutdown());
+
+        vault.unpause();
+        assertFalse(vault.paused());
+        assertTrue(vault.isShutdown());
+    }
+
     function test_unpause_revertWhen_vaultIsNotPaused() public {
         assertFalse(vault.paused());
         vm.expectRevert(Pausable.ExpectedPause.selector);
-        vault.unpause();
-    }
-
-    function test_unpause_revertWhen_vaultIsShutdown() public {
-        vault.shutdown();
-        assertTrue(vault.isShutdown());
-        vm.expectRevert(Shutdownable.EnforcedShutdown.selector);
         vault.unpause();
     }
 

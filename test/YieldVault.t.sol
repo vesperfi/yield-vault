@@ -58,6 +58,12 @@ contract YieldVault_Test is YieldVaultTestBase {
         vault.deposit(10 * assetUnit, alice);
     }
 
+    function test_deposit_revertWhen_vaultIsShutdown() public {
+        vault.shutdown();
+        vm.expectRevert(Shutdownable.EnforcedShutdown.selector);
+        vault.deposit(10 * assetUnit, alice);
+    }
+
     function test_deposit_updateRewards() public {
         address _VaultRewards = makeAddr("VaultRewards");
         vault.updateVaultRewards(_VaultRewards);
@@ -92,6 +98,12 @@ contract YieldVault_Test is YieldVaultTestBase {
     function test_mint_revertWhen_vaultIsPaused() public {
         vault.pause();
         vm.expectRevert(Pausable.EnforcedPause.selector);
+        vault.mint(1 ether, alice);
+    }
+
+    function test_mint_revertWhen_vaultIsShutdown() public {
+        vault.shutdown();
+        vm.expectRevert(Shutdownable.EnforcedShutdown.selector);
         vault.mint(1 ether, alice);
     }
 

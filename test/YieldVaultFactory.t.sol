@@ -3,13 +3,10 @@
 pragma solidity 0.8.30;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {YieldVaultFactory} from "src/YieldVaultFactory.sol";
 import {YieldVault} from "src/YieldVault.sol";
 import {MockERC20} from "test/mocks/MockERC20.sol";
-import {Constants} from "test/helpers/Constants.sol";
 
 contract YieldVaultFactoryTest is Test {
     YieldVaultFactory factory;

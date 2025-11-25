@@ -4,7 +4,6 @@ pragma solidity 0.8.30;
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {YieldVault} from "./YieldVault.sol";
 
 /**
  * @title YieldVaultFactory
