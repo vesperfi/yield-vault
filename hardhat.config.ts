@@ -77,12 +77,8 @@ const config: HardhatUserConfig = {
     enabled: false,
   },
 
-  etherscan: {
+  blockscout: {
     enabled: true,
-    apiKey: {
-      hemi: 'noApiKeyNeeded',
-      hemi_testnet: 'noApiKeyNeeded',
-    },
     customChains: [
       {
         network: 'hemi',
@@ -101,6 +97,11 @@ const config: HardhatUserConfig = {
         },
       },
     ],
+  },
+
+  etherscan: {
+    enabled: false,
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
 
   namedAccounts: {
