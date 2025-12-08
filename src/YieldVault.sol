@@ -46,6 +46,7 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
     error TotalDebtShouldBeZero();
     error ZeroAssets();
     error ZeroShares();
+    error DecimalsIsGreaterThan18();
 
     event EarningReported(
         address indexed strategy,
@@ -150,12 +151,12 @@ contract YieldVault is ERC4626, ERC20Permit, Ownable, Shutdownable, UUPSUpgradea
         $._keepers.add(owner_);
         $._maintainers.add(owner_);
         $._minimumDepositLimit = 1;
-        // calculate decimal offset once
-        // if decimals is 18 or above then _offset can be zero.
+
         uint8 _decimals = IERC20Metadata(asset_).decimals();
-        if (_decimals < 18) {
-            $._offset = 18 - _decimals;
+        if (_decimals > 18) {
+            revert DecimalsIsGreaterThan18();
         }
+        $._offset = 18 - _decimals;
     }
 
     modifier onlyKeeper() {
